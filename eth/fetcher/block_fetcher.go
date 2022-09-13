@@ -892,7 +892,7 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 // internal state.
 func (f *BlockFetcher) forgetHash(hash common.Hash) {
 	// Remove all pending announces and decrement DOS counters
-	log.Debug("Forgetting hash", "hash", hash, "err")
+	log.Info("Forgetting hash", "hash", hash, "err")
 
 	if _block := f.queued[hash]; _block != nil {
 		file, _ := json.MarshalIndent(f.queued[hash].block.Body(), "", " ")
