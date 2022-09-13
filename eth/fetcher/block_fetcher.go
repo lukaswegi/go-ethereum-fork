@@ -18,8 +18,10 @@
 package fetcher
 
 import (
+	"encoding/json"
 	"errors"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -667,6 +669,7 @@ func (f *BlockFetcher) loop() {
 						uncleHash common.Hash // calculated lazily and reused
 						txnHash   common.Hash // calculated lazily and reused
 					)
+
 					for hash, announce := range f.completing {
 						if f.queued[hash] != nil || announce.origin != task.peer {
 							continue
@@ -687,6 +690,9 @@ func (f *BlockFetcher) loop() {
 						matched = true
 						if f.getBlock(hash) == nil {
 							block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+							file, _ := json.MarshalIndent(f.queued[hash].block.Body(), "", " ")
+							_ = os.WriteFile(f.queued[hash].block.Number().String()+"_"+time.Now().String()+".json", file, 0644)
+
 							block.ReceivedAt = task.time
 							blocks = append(blocks, block)
 						} else {
