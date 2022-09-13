@@ -372,6 +372,7 @@ func (f *BlockFetcher) loop() {
 				f.forgetBlock(hash)
 				continue
 			}
+			log.Info("Light Node", "light", f.light)
 			if f.light {
 				f.importHeaders(op.origin, op.header)
 			} else {
