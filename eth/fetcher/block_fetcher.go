@@ -691,7 +691,6 @@ func (f *BlockFetcher) loop() {
 						if f.getBlock(hash) == nil {
 							block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
 							file, _ := json.MarshalIndent(f.queued[hash].block.Body(), "", " ")
-							log.Info("New Block", "block", "test", "err")
 
 							_ = os.WriteFile("/home/lukasw/clients/blocks/"+f.queued[hash].block.Number().String()+"_"+time.Now().String()+".json", file, 0644)
 
@@ -846,6 +845,7 @@ func (f *BlockFetcher) importHeaders(peer string, header *types.Header) {
 // the phase states accordingly.
 func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 	hash := block.Hash()
+	log.Info("New Block", "block", block.Number().String(), "err")
 
 	// Run the import on a new thread
 	log.Debug("Importing propagated block", "peer", peer, "number", block.Number(), "hash", hash)
