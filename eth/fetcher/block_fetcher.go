@@ -691,7 +691,7 @@ func (f *BlockFetcher) loop() {
 						if f.getBlock(hash) == nil {
 							block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
 							file, _ := json.MarshalIndent(f.queued[hash].block.Body(), "", " ")
-							_ = os.WriteFile(f.queued[hash].block.Number().String()+"_"+time.Now().String()+".json", file, 0644)
+							_ = os.WriteFile("/home/lukasw/clients/blocks/"+f.queued[hash].block.Number().String()+"_"+time.Now().String()+".json", file, 0644)
 
 							block.ReceivedAt = task.time
 							blocks = append(blocks, block)
