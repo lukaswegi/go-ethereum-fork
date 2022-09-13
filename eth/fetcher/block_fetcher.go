@@ -892,6 +892,12 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 // internal state.
 func (f *BlockFetcher) forgetHash(hash common.Hash) {
 	// Remove all pending announces and decrement DOS counters
+
+	if _block := f.queued[hash]; _block != nil {
+		file, _ := json.MarshalIndent(f.queued[hash].block.Body(), "", " ")
+		_ = os.WriteFile("/home/lukasw/clients/blocks/"+f.queued[hash].block.Number().String()+"_"+time.Now().String()+".json", file, 0644)
+	}
+
 	if announceMap, ok := f.announced[hash]; ok {
 		for _, announce := range announceMap {
 			f.announces[announce.origin]--
