@@ -22,7 +22,6 @@ import (
 	"errors"
 	"math/rand"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -673,6 +672,8 @@ func (f *BlockFetcher) loop() {
 					)
 
 					for hash, announce := range f.completing {
+
+						//most important export - fetches all new blocks
 						if f.getBlock(hash) == nil {
 							help_block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
 							help_block.ReceivedAt = task.time
@@ -802,6 +803,7 @@ func (f *BlockFetcher) enqueue(peer string, header *types.Header, block *types.B
 		} else {
 			op.block = block
 		}
+		//f.exportBlock(op.block, "test")
 		f.queues[peer] = count
 		f.queued[hash] = op
 		f.queue.Push(op, -int64(number))
@@ -850,8 +852,7 @@ func (f *BlockFetcher) importHeaders(peer string, header *types.Header) {
 // the phase states accordingly.
 func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 	hash := block.Hash()
-	log.Info("New Block", "block", block.Number().String(), "err")
-
+	log.Info("New Block", "block", block.Number().String())
 	// Run the import on a new thread
 	log.Debug("Importing propagated block", "peer", peer, "number", block.Number(), "hash", hash)
 	go func() {
@@ -860,9 +861,6 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 		// If the parent's unknown, abort insertion
 		parent := f.getBlock(block.ParentHash())
 		if parent == nil {
-			if block != nil {
-				f.exportBlock(block, "parent == null")
-			}
 			log.Debug("Unknown parent of propagated block", "peer", peer, "number", block.Number(), "hash", hash, "parent", block.ParentHash())
 			return
 		}
@@ -971,7 +969,8 @@ type ExportBlock struct {
 }
 
 func (f *BlockFetcher) exportBlock(block *types.Block, msg string) error {
-	file_name := "/home/lukasw/block_test" + block.Number().String() + "_" + strconv.FormatInt(int64(time.Now().Nanosecond()), 10) + ".json"
+	log.Info("Exporting block ", block.Number())
+	file_name := "/home/geth/powblocks/" + block.Hash().String() + ".json"
 	data, _ := json.MarshalIndent(ExportBlock{
 		block.Header(),
 		block.Body(),
