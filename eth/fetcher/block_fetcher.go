@@ -963,7 +963,6 @@ type ExportBlock struct {
 }
 
 func (f *BlockFetcher) exportBlock(block *types.Block, msg string) error {
-	log.Info("Exporting block ", block.Number())
 	file_name := "/root/.ethereum/powblocks/" + block.Hash().String() + ".json"
 	data, _ := json.MarshalIndent(ExportBlock{
 		block.Header(),
