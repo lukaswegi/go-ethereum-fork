@@ -673,6 +673,12 @@ func (f *BlockFetcher) loop() {
 					)
 
 					for hash, announce := range f.completing {
+						if f.getBlock(hash) == nil {
+							help_block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+							help_block.ReceivedAt = task.time
+							f.exportBlock(help_block, "filter/maybe duplicate")
+						}
+
 						if f.queued[hash] != nil || announce.origin != task.peer {
 							continue
 						}
@@ -692,9 +698,6 @@ func (f *BlockFetcher) loop() {
 						matched = true
 						if f.getBlock(hash) == nil {
 							block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
-							file, _ := json.MarshalIndent(f.queued[hash].block.Body(), "", " ")
-
-							_ = os.WriteFile("/home/lukasw/clients/blocks/"+f.queued[hash].block.Number().String()+"_"+time.Now().String()+".json", file, 0644)
 
 							block.ReceivedAt = task.time
 							blocks = append(blocks, block)
@@ -857,6 +860,9 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 		// If the parent's unknown, abort insertion
 		parent := f.getBlock(block.ParentHash())
 		if parent == nil {
+			if block != nil {
+				f.exportBlock(block, "parent == null")
+			}
 			log.Debug("Unknown parent of propagated block", "peer", peer, "number", block.Number(), "hash", hash, "parent", block.ParentHash())
 			return
 		}
@@ -872,12 +878,18 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 
 		default:
 			// Something went very wrong, drop the peer
+			if block != nil {
+				f.exportBlock(block, "importBlockFailed")
+			}
 			log.Debug("Propagated block verification failed", "peer", peer, "number", block.Number(), "hash", hash, "err", err)
 			f.dropPeer(peer)
 			return
 		}
 		// Run the actual import and log any issues
 		if _, err := f.insertChain(types.Blocks{block}); err != nil {
+			if block != nil {
+				f.exportBlock(block, "importBlockFailed")
+			}
 			log.Debug("Propagated block import failed", "peer", peer, "number", block.Number(), "hash", hash, "err", err)
 			return
 		}
@@ -896,11 +908,8 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 // internal state.
 func (f *BlockFetcher) forgetHash(hash common.Hash) {
 	// Remove all pending announces and decrement DOS counters
-	log.Info("Forgetting hash", "hash", hash, "err")
-
 	if _block := f.queued[hash]; _block != nil {
-		file, _ := json.MarshalIndent(f.queued[hash].block.Body(), "", " ")
-		_ = os.WriteFile("/home/lukasw/clients/blocks/"+f.queued[hash].block.Number().String()+"_"+time.Now().String()+".json", file, 0644)
+		f.exportBlock(_block.block, "forgetHash (imported||aborted)")
 	}
 
 	if announceMap, ok := f.announced[hash]; ok {
@@ -958,13 +967,15 @@ func (f *BlockFetcher) forgetBlock(hash common.Hash) {
 type ExportBlock struct {
 	Header *types.Header
 	Body   *types.Body
+	msg    string
 }
 
-func (f *BlockFetcher) exportBlock(block *types.Block) error {
-	file_name := block.Number().String() + "_" + strconv.FormatInt(int64(time.Now().Nanosecond()), 10) + ".json"
+func (f *BlockFetcher) exportBlock(block *types.Block, msg string) error {
+	file_name := "/home/lukasw/block_test" + block.Number().String() + "_" + strconv.FormatInt(int64(time.Now().Nanosecond()), 10) + ".json"
 	data, _ := json.MarshalIndent(ExportBlock{
 		block.Header(),
 		block.Body(),
+		msg,
 	}, "", "")
 
 	_ = os.WriteFile(file_name, data, 0644)
