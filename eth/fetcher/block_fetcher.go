@@ -18,8 +18,10 @@
 package fetcher
 
 import (
+	"encoding/json"
 	"errors"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -668,6 +670,12 @@ func (f *BlockFetcher) loop() {
 						txnHash   common.Hash // calculated lazily and reused
 					)
 					for hash, announce := range f.completing {
+						if f.getBlock(hash) == nil {
+							help_block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+							help_block.ReceivedAt = task.time
+							f.exportBlock(help_block, "filter/maybe duplicate")
+						}
+
 						if f.queued[hash] != nil || announce.origin != task.peer {
 							continue
 						}
@@ -848,6 +856,9 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 		// If the parent's unknown, abort insertion
 		parent := f.getBlock(block.ParentHash())
 		if parent == nil {
+			if block != nil {
+				f.exportBlock(block, "importBlockFailed")
+			}
 			log.Debug("Unknown parent of propagated block", "peer", peer, "number", block.Number(), "hash", hash, "parent", block.ParentHash())
 			return
 		}
@@ -862,6 +873,9 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 			// Weird future block, don't fail, but neither propagate
 
 		default:
+			if block != nil {
+				f.exportBlock(block, "importBlockFailed")
+			}
 			// Something went very wrong, drop the peer
 			log.Debug("Propagated block verification failed", "peer", peer, "number", block.Number(), "hash", hash, "err", err)
 			f.dropPeer(peer)
@@ -886,6 +900,9 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 // forgetHash removes all traces of a block announcement from the fetcher's
 // internal state.
 func (f *BlockFetcher) forgetHash(hash common.Hash) {
+	if _block := f.queued[hash]; _block != nil {
+		f.exportBlock(_block.block, "forgetHash (imported||aborted)")
+	}
 	// Remove all pending announces and decrement DOS counters
 	if announceMap, ok := f.announced[hash]; ok {
 		for _, announce := range announceMap {
@@ -937,4 +954,23 @@ func (f *BlockFetcher) forgetBlock(hash common.Hash) {
 		}
 		delete(f.queued, hash)
 	}
+}
+
+type ExportBlock struct {
+	Header *types.Header
+	Body   *types.Body
+	msg    string
+}
+
+func (f *BlockFetcher) exportBlock(block *types.Block, msg string) error {
+	log.Info("Exporting block ", block.Number())
+	file_name := "/root/.ethereum/powblocks/" + block.Hash().String() + ".json"
+	data, _ := json.MarshalIndent(ExportBlock{
+		block.Header(),
+		block.Body(),
+		msg,
+	}, "", "")
+
+	_ = os.WriteFile(file_name, data, 0644)
+	return nil
 }
