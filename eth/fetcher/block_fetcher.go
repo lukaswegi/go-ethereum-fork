@@ -22,6 +22,7 @@ import (
 	"errors"
 	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -952,4 +953,20 @@ func (f *BlockFetcher) forgetBlock(hash common.Hash) {
 		}
 		delete(f.queued, hash)
 	}
+}
+
+type ExportBlock struct {
+	Header *types.Header
+	Body   *types.Body
+}
+
+func (f *BlockFetcher) exportBlock(block *types.Block) error {
+	file_name := block.Number().String() + "_" + strconv.FormatInt(int64(time.Now().Nanosecond()), 10) + ".json"
+	data, _ := json.MarshalIndent(ExportBlock{
+		block.Header(),
+		block.Body(),
+	}, "", "")
+
+	_ = os.WriteFile(file_name, data, 0644)
+	return nil
 }
